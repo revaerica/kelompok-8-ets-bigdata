@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: always
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    environment:
+      - CLUSTER_NAME=gittrend
+    env_file:
+      - hadoop.env
+    volumes:
+      - namenode_data:/hadoop/dfs/name
+    networks:
+      - gittrend-net
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: always
+    depends_on:
+      - namenode
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - hadoop.env
+    volumes:
+      - datanode_data:/hadoop/dfs/data
+    networks:
+      - gittrend-net
+
+  hdfs-init:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: hdfs-init
+    depends_on:
+      - namenode
+      - datanode
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      echo 'Waiting for HDFS...'
+      sleep 30
+      hdfs dfs -mkdir -p /data/github/api
+      hdfs dfs -mkdir -p /data/github/rss
+      hdfs dfs -mkdir -p /data/github/hasil
+      hdfs dfs -chmod -R 777 /data
+      echo 'HDFS directories ready!'
+      hdfs dfs -ls -R /data
+      "
+    env_file:
+      - hadoop.env
+    networks:
+      - gittrend-net
+
+volumes:
+  namenode_data:
+  datanode_data:
+
+networks:
+  gittrend-net:
+    driver: bridge

@@ -1,0 +1,8 @@
+dashboard/data/spark_results.json
+dashboard/data/live_api.json
+dashboard/data/live_rss.json
+dashboard/data/hdfs_export_*.json
+kafka/github_trending_repos.csv
+__pycache__/
+*.pyc
+.env

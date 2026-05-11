@@ -1,0 +1,14 @@
+FROM apache/spark:3.5.3
+
+USER root
+
+RUN pip install --no-cache-dir \
+    pyspark==3.5.3 \
+    kafka-python==2.0.2 \
+    hdfs==2.7.3 \
+    requests==2.31.0
+
+WORKDIR /app
+COPY streaming_analysis.py .
+
+CMD ["python3", "streaming_analysis.py"]
