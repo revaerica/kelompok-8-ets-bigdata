@@ -226,7 +226,7 @@ def main():
         df_stream.writeStream
         .foreachBatch(process_batch)
         .trigger(processingTime=TRIGGER_INTERVAL)
-        .option("checkpointLocation", "/tmp/spark-checkpoints/github-api")
+        .option("checkpointLocation", "/tmp/spark-ckpt-local/github-api")
         .start()
     )
 
