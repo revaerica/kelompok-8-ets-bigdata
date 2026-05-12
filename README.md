@@ -239,22 +239,40 @@ Semua 3 file data terdeteksi (`live_api.json`, `live_rss.json`, `spark_results.j
 
 ![Dashboard](documentation/9.png)
 
+Panel 1 saat sistem baru jalan — total 331 repo dianalisis dari 15 bahasa unik. Distribusi bahasa ditampilkan dalam bar chart dan donut chart interaktif.
+
 ![Dashboard](documentation/10.png)
 
+Leaderboard 10 repo terpopuler dalam 2 kolom dan word cloud kata paling sering di deskripsi repo. Repo dengan bintang terbanyak adalah jackfrued/Python-100-Days (175.8k ⭐).
+
 ![Dashboard](documentation/11.png)
+
+Panel 2 & 3 menampilkan data live dari consumer — repo terbaru dari GitHub API (badge LIVE) dan berita terkini dari RSS TechCrunch, diperbarui otomatis setiap 30 detik.
+
+![Dashboard](documentation/12.png)
+
+Setelah Spark berjalan beberapa siklus, total repo yang dianalisis meningkat menjadi 1.1k — membuktikan Spark Structured Streaming berjalan otomatis dan terus melakukan analisis baru setiap 60 detik. C++ kini memimpin distribusi bahasa dengan 58 repo (8.1%), diikuti Rust dan C.
+
+![Dashboard](documentation/13.png)
+
+Leaderboard diperbarui otomatis — freeCodeCamp/freeCodeCamp kini memimpin dengan 434k ⭐. Word cloud menunjukkan kata "platform", "data", dan "library" paling dominan, mencerminkan tren infrastruktur dan tooling di komunitas open source.
+
+![Dashboard](documentation/14.png)
+
+Panel live terus menampilkan repo dan berita terbaru secara real-time. Sistem berjalan end-to-end tanpa intervensi manual — Kafka mengalirkan data, HDFS menyimpan, Spark menganalisis, dan dashboard menampilkan hasilnya secara otomatis.
 
 ---
 
 ## Hasil Analisis Spark
 
 ### Analisis 1 — Distribusi Bahasa Pemrograman
-Dari 30 repositori yang dianalisis, Python mendominasi dengan 8 repo (27%), diikuti TypeScript 5 repo (17%) dan JavaScript 4 repo (13%). Dominasi Python mencerminkan tren ekosistem AI/ML yang masih sangat aktif, mayoritas project LLM wrapper dan agent framework ditulis dalam Python. Menariknya, meski jumlah repo JavaScript lebih sedikit dari TypeScript, rata-rata bintangnya lebih tinggi (60 vs 21), menunjukkan repo JavaScript yang ada cenderung lebih established. Kotlin dan PowerShell muncul dengan rata-rata bintang tertinggi (162 dan 121) meski hanya 1 repo masing-masing.
+Dari 1.1k repositori yang dianalisis, C++ mendominasi dengan 58 repo (8.1%), diikuti Rust 55 repo (7.7%) dan C 53 repo (7.4%). Dominasi bahasa sistem seperti C++, Rust, dan C mencerminkan tren komunitas open source yang saat ini banyak mengerjakan proyek performa tinggi dan sistem level rendah. Python tetap masuk top 5 dengan 49 repo (6.9%), menunjukkan ekosistem AI/ML yang masih sangat aktif. Total 15 bahasa unik terdeteksi dari keseluruhan data.
 
 ### Analisis 2 — Top 10 Repositori Berdasarkan Bintang
-thakur-works/DarkGPT memimpin dengan 531 ⭐, diikuti Velocity-Executor (528 ⭐) dan 3DCellForge (169 ⭐). Menarik bahwa dua repo teratas berlabel bahasa "Unknown" yang mengindikasikan banyak repositori trending tidak mencantumkan bahasa utama secara eksplisit. Tema yang dominan adalah tooling (executor, auto-clicker, DNS client) dan proyek berbasis AI/3D interaktif, yang relevan sebagai bahan kurasi untuk newsletter teknologi mingguan.
+freeCodeCamp/freeCodeCamp memimpin dengan 434k ⭐, diikuti jackfrued/Python-100-Days (175.8k ⭐) dan flutter/flutter (174.1k ⭐). Tema yang dominan adalah platform belajar pemrograman (freeCodeCamp, Python-100-Days, generative-ai-for-beginners) dan framework pengembangan aplikasi (Flutter, axios, three.js). Hal ini menunjukkan bahwa repositori edukasi dan tooling developer paling banyak diminati komunitas open source secara global.
 
 ### Analisis 3 — Kata Paling Sering di Deskripsi Repo
-Kata "offline" dan "printer" muncul paling sering (4x), diikuti "claude", "skill", "clicker", "cell", dan "agent" (3x masing-masing). Kemunculan kata "agent", "llms", dan "token" mengkonfirmasi dominasi tema AI/agentic framework di repositori trending. Sementara "roblox", "executor", dan "clicker" menunjukkan segmen gaming/automation tools yang cukup aktif di GitHub pada periode pengambilan data ini.
+Kata "platform" muncul paling sering (56x), diikuti "data" (54x), "library" (53x), dan "code" (52x). Kemunculan kata "android", "framework", dan "client" mengindikasikan tren pengembangan aplikasi mobile dan web yang masih sangat dominan. Kata "agents", "generative", dan "model" juga muncul cukup sering, mengkonfirmasi bahwa tema AI dan machine learning mulai masuk ke ekosistem repositori populer di GitHub.
 
 ---
 
