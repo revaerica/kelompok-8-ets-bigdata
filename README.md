@@ -29,7 +29,7 @@ Semua komponen berjalan sebagai Docker container dalam satu network `gittrend-ne
 
 ### Diagram Arsitektur
 
-![Arsitektur Pipeline](documentation/1.jpg)
+![Arsitektur Pipeline](documentation/1.png)
 
 ### Container yang Berjalan
 
@@ -75,7 +75,7 @@ kelompok-8-ets-bigdata/
 │       ├── live_api.json
 │       └── live_rss.json
 └── documentation/
-    ├── 1.jpg   ← diagram arsitektur
+    ├── 1.png   ← diagram arsitektur
     ├── 2.png   ← HDFS Web UI
     ├── 3.png   ← Kafka topics list + consumer output
     ├── 4.png   ← HDFS ls -R
