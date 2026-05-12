@@ -17,7 +17,7 @@ from pyspark.sql.types import StructType, StructField, StringType, LongType, Arr
 KAFKA_BOOTSTRAP  = os.environ.get("KAFKA_BOOTSTRAP", "localhost:9092")
 HDFS_NAMENODE    = os.environ.get("HDFS_NAMENODE", "namenode:9000")
 TOPIC_API        = "github-api"
-DASHBOARD_OUT    = "/app/dashboard/data/spark_results.json"
+DASHBOARD_OUT    = "/app/data/spark_results.json"
 HDFS_HASIL       = f"hdfs://{HDFS_NAMENODE}/data/github/hasil"
 TRIGGER_INTERVAL = "60 seconds"
 
