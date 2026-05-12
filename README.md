@@ -258,6 +258,30 @@ Kata "offline" dan "printer" muncul paling sering (4x), diikuti "claude", "skill
 
 ---
 
+## Penjelasan Kode Utama
+
+### producer_api.py (Komponen 1)
+Mengambil data repositori dari GitHub API setiap 30 menit dan mengirimkan ke Kafka topic `github-api` dalam format JSON. Saat pertama jalan, melakukan seed dari dataset Kaggle (1049 repo) agar Spark langsung punya data untuk dianalisis.
+
+### producer_rss.py (Komponen 1)
+Mengambil berita teknologi dari RSS feed TechCrunch setiap 10 menit dan mengirimkan ke Kafka topic `github-rss`.
+
+### consumer_to_hdfs.py (Komponen 2)
+Membaca event dari kedua topic Kafka secara paralel (2 thread), menyimpan ke HDFS dalam batch 50 event atau setiap 2 menit, sekaligus menulis `live_api.json` dan `live_rss.json` ke shared volume untuk dashboard.
+
+### streaming_analysis.py (Komponen 3)
+Spark Structured Streaming membaca dari Kafka topic `github-api` secara otomatis dan menjalankan 3 analisis setiap 60 detik:
+- **Analisis 1**: Distribusi bahasa pemrograman via DataFrame API
+- **Analisis 2**: Top 10 repo terpopuler via Spark SQL
+- **Analisis 3**: Frekuensi kata di deskripsi repo via DataFrame API
+
+Hasil ditulis ke `spark_results.json` dan HDFS `/data/github/hasil/`.
+
+### app.py (Komponen 4)
+Flask server yang menyajikan dashboard di port 5000. Membaca 3 file JSON dari shared volume dan menyajikannya via endpoint `/api/data` yang di-refresh otomatis setiap 30 detik oleh browser.
+
+---
+
 ## Stop dan Cleanup
 
 ```bash
