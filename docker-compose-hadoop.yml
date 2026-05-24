@@ -69,4 +69,4 @@ volumes:
 
 networks:
   gittrend-net:
-    driver: bridge
+    external: true
