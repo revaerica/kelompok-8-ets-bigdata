@@ -110,6 +110,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./dashboard/data:/app/data
+   # - ./lakehouse:/app/lakehouse (buat tugas week 12)
     networks:
       - gittrend-net
 
