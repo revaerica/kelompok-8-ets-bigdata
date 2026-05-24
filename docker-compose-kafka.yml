@@ -111,6 +111,7 @@ services:
     volumes:
       - ./dashboard/data:/app/data
    # - ./lakehouse:/app/lakehouse (buat tugas week 12)
+   # - ./lakehouse/lakehouse_data:/app/lakehouse/lakehouse_data
     networks:
       - gittrend-net
 
