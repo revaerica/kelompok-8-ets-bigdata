@@ -69,4 +69,5 @@ volumes:
 
 networks:
   gittrend-net:
+    name: gittrend-net
     driver: bridge
