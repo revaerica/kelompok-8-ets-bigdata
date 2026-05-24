@@ -9,7 +9,8 @@
   ```
        volumes:
       - ./dashboard/data:/app/data
-      - ./lakehouse:/app/lakehouse  
+      - ./lakehouse:/app/lakehouse
+      - ./lakehouse/lakehouse_data:/app/lakehouse/lakehouse_data
   ```
 
 ## Langkah Menjalankan
