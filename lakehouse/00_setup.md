@@ -32,6 +32,9 @@ docker exec -it spark bash
 # Pindah ke folder lakehouse
 cd /app/lakehouse
 
+#install
+pip install delta-spark==3.1.0 importlib_metadata
+
 # Jalankan Bronze
 spark-submit --packages io.delta:delta-spark_2.12:3.1.0 01_bronze.py
 
