@@ -5,7 +5,7 @@
 - Docker Desktop berjalan
 - Container ETS sudah aktif (`docker compose up -d`)
 - Python package `delta-spark` tersedia di container Spark
-- Menambahkan ini pada service 'spark' di file 'docker-compose-kafka.yml'
+- Menambahkan ini pada service `spark` di file `docker-compose-kafka.yml`
   ```
        volumes:
       - ./dashboard/data:/app/data
