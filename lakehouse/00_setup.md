@@ -1,4 +1,4 @@
-# 00_setup.md — Cara Menjalankan Pipeline Lakehouse
+# Cara Menjalankan Pipeline Lakehouse
 
 ## Prasyarat
 
@@ -24,7 +24,7 @@ Tunggu ~2 menit hingga data terkumpul di HDFS.
 docker exec -it spark bash
 
 # Pindah ke folder lakehouse
-cd /app/lakehouse
+cd /lakehouse
 
 # Jalankan Bronze
 spark-submit --packages io.delta:delta-spark_2.12:3.1.0 01_bronze.py
