@@ -136,6 +136,7 @@ services:
       - "5001:5001"
     volumes:
       - ./lakehouse/lakehouse_data:/app/lakehouse/lakehouse_data
+      - ./lakehouse/app_gold.py:/app/app_gold.py
       - ./dashboard/data:/app/data
     restart: unless-stopped
     networks:

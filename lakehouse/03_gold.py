@@ -17,12 +17,13 @@ Bonus Cross-source Join:
                           bersamaan di GitHub trending DAN di berita teknologi
 """
 import os
+import shutil
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import (
     col, count, avg, sum as spark_sum, max as spark_max,
     round as spark_round, desc,
     explode, split, lower, regexp_replace,
-    lag, lit, current_timestamp, trim
+    lag, lit, current_timestamp, trim, row_number, concat, expr
 )
 from delta import configure_spark_with_delta_pip
 
@@ -68,6 +69,22 @@ def buat_spark():
     ).getOrCreate()
 
 
+def hapus_dir_lokal(path_uri):
+    """
+    Menghapus direktori lokal sebelum menulis Delta Table.
+    Ini penting karena dashboard Flask membaca data via glob (*.parquet),
+    sehingga kita harus membersihkan parquet versi historis agar tidak terjadi
+    schema mismatch dengan file-file lama.
+    """
+    local_path = path_uri.replace("file://", "")
+    if os.path.exists(local_path):
+        try:
+            shutil.rmtree(local_path)
+            print(f"[gold] Membersihkan direktori lama: {local_path}")
+        except Exception as e:
+            print(f"[gold] Gagal membersihkan {local_path}: {e}")
+
+
 def main():
     spark = buat_spark()
     spark.sparkContext.setLogLevel("WARN")
@@ -75,14 +92,37 @@ def main():
 
     silver = spark.read.format("delta").load(SILVER_GITHUB)
     total = silver.count()
-    print(f"[gold] Silver record: {total}")
+    print(f"[gold] Silver record (total riwayat): {total}")
+
+    # ── Deduplikasi data Silver untuk non-temporal analysis ──────────────────
+    # Karena Silver menyimpan riwayat (dedup berdasarkan full_name + _ingested_at),
+    # kita perlu mengambil record terbaru per repo untuk language_dist, top_repos,
+    # emerging_topics, dan api_rss_join agar tidak terjadi duplikasi data.
+    window_latest = Window.partitionBy("full_name").orderBy(desc("_ingested_at"), desc("timestamp"))
+    silver_latest = (
+        silver
+        .withColumn("row_num", row_number().over(window_latest))
+        .filter(col("row_num") == 1)
+        .drop("row_num")
+    )
+    print(f"[gold] Silver record (unik/terbaru) : {silver_latest.count()}")
+
+    # ── Bersihkan direktori Gold lama ────────────────────────────────────────
+    # Karena dashboard Flask membaca raw parquet via glob (*.parquet), kita harus
+    # menghapus folder lama secara fisik sebelum Spark menulis ulang agar tidak ada
+    # file parquet lama dengan skema/data usang yang tertinggal dan memicu error.
+    hapus_dir_lokal(GOLD_LANG)
+    hapus_dir_lokal(GOLD_TOP)
+    hapus_dir_lokal(GOLD_VELOCITY)
+    hapus_dir_lokal(GOLD_EMERGING)
+    hapus_dir_lokal(GOLD_JOIN)
 
     # ════════════════════════════════════════════════════════════════════════
     # TABEL 1: language_dist — Repro Analisis 1 ETS
     # ════════════════════════════════════════════════════════════════════════
     print("\n[gold] Membuat language_dist...")
     lang_df = (
-        silver
+        silver_latest
         .filter(
             col("language").isNotNull()
             & (col("language") != "")
@@ -104,7 +144,7 @@ def main():
     # TABEL 2: top_repos — Repro Analisis 2 ETS (Spark SQL)
     # ════════════════════════════════════════════════════════════════════════
     print("\n[gold] Membuat top_repos...")
-    silver.createOrReplaceTempView("silver_repos")
+    silver_latest.createOrReplaceTempView("silver_repos")
     top_df = spark.sql("""
         SELECT
             full_name,
@@ -151,7 +191,7 @@ def main():
     # ════════════════════════════════════════════════════════════════════════
     print("\n[gold] Membuat emerging_topics...")
     from pyspark.sql.functions import max as spark_max_fn
-    max_jam = silver.filter(col("jam").isNotNull()).agg(
+    max_jam = silver_latest.filter(col("jam").isNotNull()).agg(
         spark_max_fn("jam")
     ).collect()[0][0]
 
@@ -160,7 +200,7 @@ def main():
         jam_cutoff = (max_jam - 3) % 24
 
         words_recent = (
-            silver
+            silver_latest
             .filter(col("description").isNotNull() & col("jam").isNotNull()
                     & (col("jam") >= jam_cutoff))
             .select(explode(split(
@@ -172,7 +212,7 @@ def main():
         )
 
         words_old = (
-            silver
+            silver_latest
             .filter(col("description").isNotNull() & col("jam").isNotNull()
                     & (col("jam") < jam_cutoff))
             .select(explode(split(
@@ -196,9 +236,6 @@ def main():
 
     # ════════════════════════════════════════════════════════════════════════
     # TABEL 5: api_rss_join — BONUS Cross-source Join
-    # Join Silver API (repo GitHub) dengan Bronze RSS (berita teknologi)
-    # Insight: nama repo / teknologi apa yang muncul di trending GitHub
-    # sekaligus disebut dalam berita TechCrunch?
     # ════════════════════════════════════════════════════════════════════════
     print("\n[gold] Membuat api_rss_join (cross-source join bonus)...")
     try:
@@ -207,21 +244,28 @@ def main():
         print(f"[gold] RSS record tersedia: {rss_count}")
 
         # Ekstrak kata kunci dari nama repo (ambil bagian setelah '/')
-        # dan cari kemunculannya di judul berita RSS
-        silver_keywords = silver.withColumn(
+        silver_keywords = silver_latest.withColumn(
             "repo_name",
             lower(trim(split(col("full_name"), "/").getItem(1)))
         ).select("full_name", "repo_name", "language", "stargazers_count")
 
-        rss_titles = rss_df.withColumn(
-            "title_lower", lower(col("title"))
-        ).select("title", "title_lower", "link", "published", "source")
+        # Deduplikasi artikel RSS berdasarkan judul agar tidak terjadi perulangan join
+        rss_titles = (
+            rss_df
+            .withColumn("title_lower", lower(col("title")))
+            .select("title", "title_lower", "link", "published", "source")
+            .dropDuplicates(["title"])
+        )
 
-        # Cross join + filter: repo name muncul di judul berita
+        # Cross join + filter kata utuh menggunakan locate (dynamic column matching)
         join_df = (
             silver_keywords
             .crossJoin(rss_titles)
-            .filter(col("title_lower").contains(col("repo_name")))
+            # Buat kolom temporary agar bisa dicari secara kata utuh
+            .withColumn("padded_title", concat(lit(" "), regexp_replace(regexp_replace(col("title_lower"), r"[^\w\s-]", " "), r"-", " "), lit(" ")))
+            .withColumn("padded_repo", concat(lit(" "), col("repo_name"), lit(" ")))
+            # Gunakan locate via SQL expression (menghindari error iteration Column)
+            .filter(expr("locate(padded_repo, padded_title) > 0"))
             .select(
                 col("full_name").alias("repo"),
                 col("language"),

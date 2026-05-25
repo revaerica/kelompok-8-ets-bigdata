@@ -20,15 +20,44 @@ def baca_parquet(path):
         files = glob.glob(f"{path}/*.parquet")
         if not files:
             return []
+        
+        # Urutkan file berdasarkan waktu modifikasi terbaru dahulu
+        files.sort(key=os.path.getmtime, reverse=True)
+        
         import pyarrow.parquet as pq
         import pyarrow as pa
-        tables = [pq.read_table(f) for f in files]
-        combined = pa.concat_tables(tables)
+        
+        tables = []
+        for f in files:
+            try:
+                tables.append(pq.read_table(f))
+            except Exception as e:
+                print(f"[dashboard-error] Gagal membaca file {f}: {e}")
+                pass
+                
+        if not tables:
+            return []
+            
+        # Filter hanya tabel yang memiliki skema kompatibel dengan file terbaru
+        compatible_tables = []
+        base_schema = tables[0].schema
+        for t in tables:
+            if t.schema == base_schema:
+                compatible_tables.append(t)
+            else:
+                print(f"[dashboard-warning] Skema parquet lama dilewati karena tidak cocok dengan skema terbaru.")
+                
+        if not compatible_tables:
+            return []
+            
+        combined = pa.concat_tables(compatible_tables)
         d = combined.to_pydict()
         keys = list(d.keys())
         if not keys:
             return []
+            
         result = []
+        seen = set()
         for i in range(len(d[keys[0]])):
             row = {}
             for k in keys:
@@ -38,9 +67,15 @@ def baca_parquet(path):
                 if hasattr(val, "isoformat"):
                     val = str(val)
                 row[k] = val
-            result.append(row)
+                
+            # Kunci deduplikasi pintar
+            uniq_key = row.get("full_name") or row.get("repo") or row.get("word") or row.get("language") or str(row)
+            if uniq_key not in seen:
+                seen.add(uniq_key)
+                result.append(row)
         return result
     except Exception as e:
+        print(f"[dashboard-error] Error di baca_parquet: {e}")
         return []
 
 
@@ -71,7 +106,7 @@ HTML = """<!DOCTYPE html>
       --display: 'Syne', sans-serif;
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh}
+    body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;overflow-x:hidden}
 
     header{position:sticky;top:0;z-index:100;background:rgba(10,10,15,0.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between}
     .logo{display:flex;align-items:center;gap:10px}
@@ -82,11 +117,11 @@ HTML = """<!DOCTYPE html>
     .gold-badge{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:0.67rem;color:var(--gold);background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);padding:3px 10px;border-radius:20px}
     #last-update{font-family:var(--mono);font-size:0.67rem;color:var(--muted)}
 
-    main{max-width:1300px;margin:0 auto;padding:28px 28px 60px;display:grid;gap:20px}
+    main{max-width:1300px;margin:0 auto;padding:28px 40px 60px;display:grid;gap:20px}
     .sec-label{font-family:var(--mono);font-size:0.64rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px}
     .sec-label::after{content:'';flex:1;height:1px;background:var(--border)}
 
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 28px}
     .card-title{font-family:var(--display);font-size:0.92rem;font-weight:700;margin-bottom:16px;color:var(--text);display:flex;align-items:center;gap:8px}
     .ctag{font-family:var(--mono);font-size:0.6rem;padding:2px 7px;border-radius:4px;background:rgba(251,191,36,0.1);color:var(--gold);border:1px solid rgba(251,191,36,0.2);font-weight:400}
     .ctag-purple{font-family:var(--mono);font-size:0.6rem;padding:2px 7px;border-radius:4px;background:rgba(124,106,247,0.12);color:var(--accent);border:1px solid rgba(124,106,247,0.2);font-weight:400}
@@ -102,12 +137,12 @@ HTML = """<!DOCTYPE html>
     @media(max-width:860px){.two-col{grid-template-columns:1fr}}
 
     .lang-rows{display:flex;flex-direction:column;gap:8px}
-    .lang-row{display:flex;align-items:center;gap:9px}
-    .lang-name{font-family:var(--mono);font-size:0.71rem;width:80px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
-    .lang-bar-bg{flex:1;height:10px;background:rgba(255,255,255,0.04);border-radius:5px;overflow:hidden}
+    .lang-row{display:flex;align-items:center;gap:12px}
+    .lang-name{font-family:var(--mono);font-size:0.71rem;width:90px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+    .lang-bar-bg{flex:1;height:10px;background:rgba(255,255,255,0.04);border-radius:5px;overflow:hidden;min-width:60px}
     .lang-bar{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--gold),var(--orange));transition:width .8s cubic-bezier(.22,.68,0,1.2)}
-    .lang-cnt{font-family:var(--mono);font-size:0.67rem;color:var(--muted);width:26px;text-align:right;flex-shrink:0}
-    .lang-pct{font-family:var(--mono);font-size:0.67rem;color:var(--gold);width:36px;text-align:right;flex-shrink:0}
+    .lang-cnt{font-family:var(--mono);font-size:0.67rem;color:var(--muted);width:34px;text-align:right;flex-shrink:0}
+    .lang-pct{font-family:var(--mono);font-size:0.67rem;color:var(--gold);width:44px;text-align:right;flex-shrink:0}
 
     .chart-wrap{position:relative;width:100%;max-width:220px;margin:0 auto}
     .chart-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
@@ -199,13 +234,13 @@ HTML = """<!DOCTYPE html>
         <span class="ctag">Gold · language_dist</span>
         <span class="ctag-purple">Repro ETS Analisis 1</span>
       </div>
-      <div style="display:grid;grid-template-columns:1fr auto;gap:28px;align-items:start">
-        <div>
-          <div style="display:flex;gap:6px;margin-bottom:10px;font-family:var(--mono);font-size:0.62rem;color:var(--muted)">
-            <span style="width:80px">Bahasa</span>
-            <span style="flex:1">Bar</span>
-            <span style="width:26px;text-align:right">Repo</span>
-            <span style="width:36px;text-align:right">%</span>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:32px;align-items:start">
+        <div style="min-width:0">
+          <div style="display:flex;gap:12px;margin-bottom:10px;font-family:var(--mono);font-size:0.62rem;color:var(--muted)">
+            <span style="width:90px;flex-shrink:0">Bahasa</span>
+            <span style="flex:1;min-width:60px">Bar</span>
+            <span style="width:34px;text-align:right;flex-shrink:0">Repo</span>
+            <span style="width:44px;text-align:right;flex-shrink:0">%</span>
           </div>
           <div class="lang-rows" id="lang-rows"><div class="empty">Memuat data Gold…</div></div>
         </div>
