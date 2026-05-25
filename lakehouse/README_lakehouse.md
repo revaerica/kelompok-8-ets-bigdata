@@ -295,15 +295,15 @@ Semua tabel Gold tersimpan di format Delta Lake ✅
 | Format | JSON flat | Delta format dengan schema ketat |
 | Data | ~1.1k repo | 1179 repo unik terbaru |
 
-### Gold 3: `star_velocity` (🆕 Enhanced — Window Function)
+### Gold 3: `star_velocity` ( Enhanced — Window Function)
 
 Tidak bisa dibuat di ETS karena timestamp masih String. Berhasil menghasilkan **1159 repo** dengan data velocity karena Bronze dijalankan di beberapa sesi berbeda, menghasilkan observasi multi-waktu per repo.
 
-### Gold 4: `emerging_topics` (🆕 Enhanced — Cross-time analysis)
+### Gold 4: `emerging_topics` ( Enhanced — Cross-time analysis)
 
 Menghasilkan **1402 kata emerging**. Kata "chart" paling sering muncul (8x), diikuti "solidity", "next", dan "elixir".
 
-### Gold 5: `api_rss_join` (🆕 Bonus — Cross-source Join)
+### Gold 5: `api_rss_join` ( Bonus — Cross-source Join)
 
 Menghasilkan **1 pasangan**: `kubernetes/website` muncul di GitHub trending dan di berita TechCrunch tentang Kash Patel's clothing brand website.
 
