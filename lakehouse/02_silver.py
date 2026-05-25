@@ -9,16 +9,20 @@ Membaca Bronze Delta layer dan melakukan cleaning:
 4. Isi null pada kolom language dengan "Unknown"
 5. Filter stargazers_count negatif (data korup)
 6. Ekstrak kolom jam dari timestamp (untuk analisis temporal)
+
+Bonus:
++ Demo Time Travel Delta Lake
++ Demo Schema Evolution (mergeSchema)
 """
 import os
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, to_timestamp, hour, current_timestamp
+from pyspark.sql.functions import col, to_timestamp, hour, current_timestamp, expr
 from delta import configure_spark_with_delta_pip
 from delta.tables import DeltaTable
 
 HDFS_NAMENODE = os.environ.get("HDFS_NAMENODE", "namenode:9000")
-BRONZE_API    = "./lakehouse_data/bronze/github_api"
-SILVER_GITHUB = "./lakehouse_data/silver/github"
+BRONZE_API    = "/app/lakehouse/lakehouse_data/bronze/github_api"
+SILVER_GITHUB = "/app/lakehouse/lakehouse_data/silver/github"
 
 
 def buat_spark():
@@ -48,10 +52,11 @@ def main():
     total_bronze = bronze_df.count()
     print(f"[silver] Bronze record: {total_bronze}")
 
-    # ── Transformasi 1: Hapus duplikat berdasarkan full_name ─────────────────
-    # Alasan: producer bisa mengirim repo yang sama beberapa kali
-    # (seed Kaggle + live API bisa overlap)
-    after_dedup = bronze_df.dropDuplicates(["full_name"])
+    # ── Transformasi 1: Hapus duplikat berdasarkan full_name + _ingested_at ──
+    # Alasan: producer bisa mengirim repo yang sama beberapa kali di batch
+    # yang SAMA, tapi kita tetap perlu observasi multi-waktu (beda _ingested_at)
+    # untuk kalkulasi lag() di Gold layer (star_velocity).
+    after_dedup = bronze_df.dropDuplicates(["full_name", "_ingested_at"])
     print(f"[silver] Setelah dedup           : {after_dedup.count()} "
           f"(hilang {total_bronze - after_dedup.count()} duplikat)")
 
@@ -97,18 +102,15 @@ def main():
 
     deltaTable = DeltaTable.forPath(spark, SILVER_GITHUB)
 
-    # Lihat history
     print("History tabel Silver:")
     deltaTable.history().select("version", "timestamp", "operation").show()
 
-    # Lakukan update: repo yang language-nya masih null → "Unknown"
     print("Melakukan UPDATE: language null → 'Unknown'...")
     deltaTable.update(
         condition="language IS NULL",
         set={"language": "'Unknown'"}
     )
 
-    # Bandingkan versi sekarang vs versi 0
     print("\n=== Distribusi language SEKARANG ===")
     (spark.read.format("delta").load(SILVER_GITHUB)
      .groupBy("language").count()
@@ -123,9 +125,52 @@ def main():
      .orderBy("count", ascending=False)
      .show(10))
 
-    # History terbaru
     print("\nHistory tabel Silver setelah update:")
     deltaTable.history().select("version", "timestamp", "operation").show()
+
+    # ── Demo Schema Evolution ─────────────────────────────────────────────────
+    print("\n=== DEMO SCHEMA EVOLUTION ===")
+    print("Menambahkan kolom baru 'repo_tier' ke Silver tanpa DROP TABLE...")
+    print("Ini tidak mungkin dilakukan di HDFS/JSON biasa — harus tulis ulang seluruh dataset.")
+
+    silver_current = spark.read.format("delta").load(SILVER_GITHUB)
+    print("\nSchema SEBELUM Schema Evolution:")
+    silver_current.printSchema()
+
+    # Tambah kolom repo_tier berdasarkan jumlah bintang
+    silver_with_tier = silver_current.withColumn(
+        "repo_tier",
+        expr("""
+            CASE
+                WHEN stargazers_count > 10000 THEN 'legendary'
+                WHEN stargazers_count > 1000  THEN 'popular'
+                WHEN stargazers_count > 100   THEN 'rising'
+                ELSE 'new'
+            END
+        """)
+    )
+
+    # mergeSchema=True → Delta Lake otomatis tambah kolom repo_tier ke skema
+    silver_with_tier.write.format("delta") \
+        .option("mergeSchema", "true") \
+        .mode("overwrite") \
+        .save(SILVER_GITHUB)
+
+    print("\nSchema Silver SESUDAH Schema Evolution:")
+    spark.read.format("delta").load(SILVER_GITHUB).printSchema()
+
+    print("\nDistribusi repo_tier:")
+    (spark.read.format("delta").load(SILVER_GITHUB)
+     .groupBy("repo_tier").count()
+     .orderBy("count", ascending=False)
+     .show())
+
+    print("\nHistory tabel Silver setelah Schema Evolution:")
+    DeltaTable.forPath(spark, SILVER_GITHUB) \
+        .history().select("version", "timestamp", "operation").show()
+
+    print("\n✅ Schema Evolution selesai — kolom 'repo_tier' ditambahkan")
+    print("   tanpa DROP TABLE, tanpa migrasi manual, tanpa downtime!")
 
 
 if __name__ == "__main__":

@@ -110,8 +110,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./dashboard/data:/app/data
-   # - ./lakehouse:/app/lakehouse (buat tugas week 12)
-   # - ./lakehouse/lakehouse_data:/app/lakehouse/lakehouse_data
+      - ./lakehouse:/app/lakehouse
     networks:
       - gittrend-net
 
@@ -123,6 +122,20 @@ services:
     ports:
       - "5000:5000"
     volumes:
+      - ./dashboard/data:/app/data
+    restart: unless-stopped
+    networks:
+      - gittrend-net
+
+  lakehouse-dashboard:
+    build:
+      context: ./lakehouse
+      dockerfile: Dockerfile.lakehouse
+    container_name: lakehouse-dashboard
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./lakehouse/lakehouse_data:/app/lakehouse/lakehouse_data
       - ./dashboard/data:/app/data
     restart: unless-stopped
     networks:

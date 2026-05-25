@@ -6,3 +6,4 @@ kafka/github_trending_repos.csv
 __pycache__/
 *.pyc
 .env
+lakehouse/lakehouse_data/

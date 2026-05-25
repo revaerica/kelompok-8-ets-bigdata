@@ -14,9 +14,8 @@ from delta import configure_spark_with_delta_pip
 HDFS_NAMENODE = os.environ.get("HDFS_NAMENODE", "namenode:9000")
 HDFS_API_PATH = f"hdfs://{HDFS_NAMENODE}/data/github/api/"
 HDFS_RSS_PATH = f"hdfs://{HDFS_NAMENODE}/data/github/rss/"
-BRONZE_API    = "./lakehouse_data/bronze/github_api"
-BRONZE_RSS    = "./lakehouse_data/bronze/github_rss"
-
+BRONZE_API    = "/app/lakehouse/lakehouse_data/bronze/github_api"
+BRONZE_RSS    = "/app/lakehouse/lakehouse_data/bronze/github_rss"
 
 def buat_spark():
     builder = (
@@ -59,25 +58,28 @@ def main():
 
     # ── Ingest RSS ───────────────────────────────────────────────────────────
     print(f"[bronze] Membaca RSS dari: {HDFS_RSS_PATH}")
-    rss_df = (
-        spark.read
-        .option("multiLine", True)
-        .json(HDFS_RSS_PATH)
-    )
-    print(f"[bronze] RSS record: {rss_df.count()}")
-
-    bronze_rss = (
-        rss_df
-        .withColumn("_ingested_at", current_timestamp())
-        .withColumn("_source", lit("rss"))
-    )
-    bronze_rss.write.format("delta").mode("append").save(BRONZE_RSS)
-    print(f"[bronze] RSS disimpan ke Delta: {BRONZE_RSS}")
+    try:
+        rss_df = (
+            spark.read
+            .option("multiLine", True)
+            .json(HDFS_RSS_PATH)
+        )
+        print(f"[bronze] RSS record: {rss_df.count()}")
+        bronze_rss = (
+            rss_df
+            .withColumn("_ingested_at", current_timestamp())
+            .withColumn("_source", lit("rss"))
+        )
+        bronze_rss.write.format("delta").mode("append").save(BRONZE_RSS)
+        print(f"[bronze] RSS disimpan ke Delta: {BRONZE_RSS}")
+    except Exception as e:
+        print(f"[bronze] RSS skip (belum ada data): {e}")
+        bronze_rss = None
 
     # ── Ringkasan ────────────────────────────────────────────────────────────
     print("\n=== BRONZE LAYER — Ringkasan ===")
     print(f"API  : {bronze_api.count()} record")
-    print(f"RSS  : {bronze_rss.count()} record")
+    print(f"RSS  : {'skip' if bronze_rss is None else bronze_rss.count()} record")
     print("Kolom metadata ditambahkan: _ingested_at, _source")
     print("\nSchema Bronze API:")
     spark.read.format("delta").load(BRONZE_API).printSchema()
