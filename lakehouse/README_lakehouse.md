@@ -138,18 +138,15 @@ root
 ### Silver Layer — Cleaning, Time Travel & Schema Evolution
 
 ![Silver - proses cleaning](../documentation/17.png)
-*Silver memproses 15046 Bronze record → 8161 Silver (hilang 6885 duplikat berdasarkan full_name + _ingested_at)*
+*Silver memproses 15046 Bronze record → 8161 Silver (hilang 6885 duplikat). Schema Silver lengkap dengan kolom jam, _processed_at, dan repo_tier. History tabel Silver menunjukkan 10 versi (v0–v9)*
 
-![Silver - schema dan Time Travel history](../documentation/18.png)
-*Schema Silver lengkap dengan kolom jam dan _processed_at. History tabel Silver menunjukkan 10 versi (v0–v9)*
+![Silver - Time Travel distribusi language](../documentation/18.png)
+*Time Travel: distribusi language sekarang (HTML 430, C++ 423) vs versi 0 (Unknown 11, JavaScript 5). History tabel Silver setelah update tetap v0–v9*
 
-![Silver - distribusi language versi 0 vs terbaru](../documentation/19.png)
-*Time Travel: distribusi language sekarang (HTML 430, C++ 423) vs versi 0 (Unknown 11, JavaScript 5)*
+![Silver - Schema Evolution sebelum/sesudah](../documentation/19.png)
+*Demo Schema Evolution: Schema SEBELUM dan SESUDAH mergeSchema=True — kolom repo_tier dipertahankan tanpa DROP TABLE, tanpa downtime*
 
-![Silver - Schema Evolution sebelum/sesudah](../documentation/20.png)
-*Demo Schema Evolution: kolom repo_tier ditambahkan ke Silver tanpa DROP TABLE menggunakan mergeSchema=True*
-
-![Silver - distribusi repo_tier dan history setelah Schema Evolution](../documentation/21.png)
+![Silver - distribusi repo_tier dan history setelah Schema Evolution](../documentation/20.png)
 *Distribusi repo_tier: legendary 3206, popular 3171, new 916, rising 868. History Silver setelah Schema Evolution: versi 10 (total 11 versi, v0–v10)*
 
 Silver berhasil memproses **15046 Bronze record** menjadi **8161 record bersih** —
@@ -186,17 +183,17 @@ History tabel Silver:
 
 ### Gold Layer — Agregasi, Enhanced Analysis & Cross-source Join
 
-![Gold - mulai dan language_dist disimpan](../documentation/22.png)
-*Gold mulai otomatis, Silver record: 8161 total riwayat / 1215 unik terbaru. language_dist: 34 bahasa disimpan*
+![Gold - mulai, language_dist disimpan, dan tabel language_dist](../documentation/21.png)
+*Gold mulai otomatis, Silver record: 8161 total riwayat / 1215 unik terbaru. language_dist: 34 bahasa disimpan. Tabel language_dist: HTML memimpin (73 repo), diikuti Python (66) dan TypeScript (65)*
 
-![Gold - language_dist table dan top_repos](../documentation/23.png)
-*Tabel language_dist: HTML memimpin (73 repo), diikuti Python (66) dan TypeScript (65). Top_repos disimpan*
+![Gold - top_repos dan star_velocity](../documentation/22.png)
+*Top_repos disimpan (top 10 berdasarkan bintang). star_velocity: 1179 repo*
 
-![Gold - star_velocity dan emerging_topics](../documentation/24.png)
-*star_velocity: 1179 repo. emerging_topics: 1283 kata baru*
+![Gold - emerging_topics dan api_rss_join](../documentation/23.png)
+*emerging_topics: 1283 kata baru. api_rss_join: 1 pasangan (kubernetes/website × berita TechCrunch)*
 
-![Gold - api_rss_join dan ringkasan + pipeline Selesai! Tunggu 10 menit](../documentation/25.png)
-*api_rss_join: 1 pasangan (kubernetes/website × berita TechCrunch). Gold layer selesai ✅. Pipeline otomatis menunggu 10 menit sebelum run berikutnya*
+![Gold - ringkasan dan pipeline selesai](../documentation/24.png)
+*Gold layer selesai ✅ — language_dist 34 bahasa, top_repos 10 repo, star_velocity 1179 repo, emerging_topics 1283 kata, api_rss_join 1 pasangan. Pipeline otomatis menunggu 10 menit sebelum run berikutnya*
 
 ```
 === GOLD LAYER — Ringkasan ===
