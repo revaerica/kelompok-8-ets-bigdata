@@ -150,7 +150,7 @@ root
 *Demo Schema Evolution: kolom repo_tier ditambahkan ke Silver tanpa DROP TABLE menggunakan mergeSchema=True*
 
 ![Silver - distribusi repo_tier dan history setelah Schema Evolution](../documentation/21.png)
-*Distribusi repo_tier: legendary 3206, popular 3171, new 916, rising 868. History Silver setelah Schema Evolution: versi 10*
+*Distribusi repo_tier: legendary 3206, popular 3171, new 916, rising 868. History Silver setelah Schema Evolution: versi 10 (total 11 versi, v0–v10)*
 
 Silver berhasil memproses **15046 Bronze record** menjadi **8161 record bersih** —
 menghapus 6885 duplikat. Data disimpan ke `/app/lakehouse/lakehouse_data/silver/github`.
@@ -167,13 +167,14 @@ menghapus 6885 duplikat. Data disimpan ke `/app/lakehouse/lakehouse_data/silver/
 
 > **Catatan penting:** Dedup Silver menggunakan `dropDuplicates(["full_name", "_ingested_at"])` — bukan hanya `full_name`. Ini mempertahankan observasi multi-waktu untuk kalkulasi `lag()` di Gold layer (star_velocity), sementara tetap menghapus duplikat dalam batch yang sama.
 
-Demo Time Travel berhasil — tabel Silver punya 10 versi (v0–v9):
+Demo Time Travel berhasil — tabel Silver punya **11 versi** (v0–v10) setelah pipeline pertama selesai penuh (termasuk schema evolution):
 
 ```
 History tabel Silver:
 +-------+--------------------+---------+
 |version|           timestamp|operation|
 +-------+--------------------+---------+
+|     10|2026-05-25 09:09:...|    WRITE|
 |      9|2026-05-25 09:09:...|    WRITE|
 |      8|2026-05-25 06:41:...|    WRITE|
 |      ...                            |
@@ -334,7 +335,7 @@ spark.read.format("delta").option("versionAsOf", 0).load(silver_path)
 spark.read.format("delta").load(silver_path)
 ```
 
-Tabel Silver punya **10 versi** (v0 dari 24 Mei hingga v9 dari 25 Mei), membuktikan audit trail Delta Lake berjalan sempurna lintas hari — dan terus bertambah setiap pipeline otomatis berjalan.
+Tabel Silver punya **11 versi** (v0 dari 24 Mei hingga v10 dari 25 Mei), membuktikan audit trail Delta Lake berjalan sempurna lintas hari — dan terus bertambah setiap pipeline otomatis berjalan.
 
 ---
 
@@ -360,7 +361,7 @@ Kolom `repo_tier` ditambahkan tanpa DROP TABLE. Distribusi:
 | Aspek | HDFS JSON (ETS) | Delta Lake (Tugas) |
 |---|---|---|
 | **ACID** | ❌ Tidak ada | ✅ Atomik — commit all or nothing |
-| **Versioning** | ❌ Tidak bisa lihat data versi lama | ✅ Time Travel ke versi manapun (10 versi tercatat) |
+| **Versioning** | ❌ Tidak bisa lihat data versi lama | ✅ Time Travel ke versi manapun (11 versi tercatat) |
 | **Schema** | ❌ Tidak ada enforcement | ✅ Schema konsisten + Schema Evolution |
 | **Update/Delete** | ❌ Harus tulis ulang seluruh file | ✅ MERGE INTO, UPDATE, DELETE efisien |
 | **Audit Trail** | ❌ Tidak tahu siapa ubah apa kapan | ✅ `_delta_log` mencatat semua operasi |
@@ -369,7 +370,7 @@ Kolom `repo_tier` ditambahkan tanpa DROP TABLE. Distribusi:
 | **Cross-source Analysis** | ❌ Susah join JSON dari sumber berbeda | ✅ Join Silver API + RSS di Gold layer |
 | **Otomasi Pipeline** | ❌ Manual setiap analisis | ✅ Service `lakehouse-pipeline` jalan otomatis setiap 10 menit |
 
-**Kesimpulan:** Keuntungan paling nyata untuk GitTrend adalah pipeline yang berjalan **otomatis penuh** via service `lakehouse-pipeline`, kemampuan mendeteksi **6885 duplikat** secara terstruktur, Time Travel dengan **10 versi** yang terus bertambah, Schema Evolution tanpa downtime, dan star_velocity yang menghasilkan **1179 repo** berkat observasi multi-waktu dari pipeline otomatis.
+**Kesimpulan:** Keuntungan paling nyata untuk GitTrend adalah pipeline yang berjalan **otomatis penuh** via service `lakehouse-pipeline`, kemampuan mendeteksi **6885 duplikat** secara terstruktur, Time Travel dengan **11 versi** yang terus bertambah, Schema Evolution tanpa downtime, dan star_velocity yang menghasilkan **1179 repo** berkat observasi multi-waktu dari pipeline otomatis.
 
 ---
 
@@ -390,7 +391,7 @@ Data tersimpan di local filesystem (di-mount via Docker volume):
 ```
 lakehouse/lakehouse_data/
 ├── bronze/github_api/        ← _delta_log/ + *.snappy.parquet
-├── silver/github/            ← _delta_log/ + *.snappy.parquet (10 versi)
+├── silver/github/            ← _delta_log/ + *.snappy.parquet (11 versi, v0–v10)
 └── gold/
     ├── language_dist/        ← 34 bahasa
     ├── top_repos/            ← 10 repo
