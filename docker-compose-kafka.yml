@@ -142,6 +142,37 @@ services:
     networks:
       - gittrend-net
 
+  # Service baru: pipeline Bronze->Silver->Gold jalan otomatis setiap 10 menit
+  lakehouse-pipeline:
+    build:
+      context: ./lakehouse
+      dockerfile: Dockerfile.lakehouse
+    container_name: lakehouse-pipeline
+    depends_on:
+      - spark
+      - consumer-hdfs
+    environment:
+      HDFS_NAMENODE: namenode:9000
+      PYTHONUNBUFFERED: "1"
+    command: >
+      bash -c "pip install delta-spark==3.1.0 importlib_metadata &&
+               echo '[pipeline] Menunggu 60 detik agar HDFS dan data siap...' &&
+               sleep 60 &&
+               while true; do
+                 echo '[pipeline] Mulai run Bronze...' &&
+                 python3 /app/lakehouse/01_bronze.py &&
+                 echo '[pipeline] Mulai run Silver...' &&
+                 python3 /app/lakehouse/02_silver.py &&
+                 echo '[pipeline] Mulai run Gold...' &&
+                 python3 /app/lakehouse/03_gold.py &&
+                 echo '[pipeline] Selesai! Tunggu 10 menit...' &&
+                 sleep 600
+               done"
+    volumes:
+      - ./lakehouse:/app/lakehouse
+    restart: unless-stopped
+    networks:
+      - gittrend-net
 networks:
   gittrend-net:
     external: true
